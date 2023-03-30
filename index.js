@@ -1,17 +1,18 @@
 const express = require('express')
-var morgan = require('morgan')
+//var morgan = require('morgan')
 const app = express()
 const cors = require('cors')
 
 
 app.use(express.json())
-morgan.token('asd', req => {
-    return JSON.stringify(req.body)
-})
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms'))
+// morgan.token('asd', req => {
+//     return JSON.stringify(req.body)
+// })
+// app.use(morgan(':method :url :status :res[content-length] - :response-time ms'))
 
-app.use(morgan(':method :url :body'))
+// app.use(morgan(':method :url :body'))
 app.use(cors())
+app.use(express.static('build'))
 
 
 //app.use(requestLogger)
@@ -35,10 +36,16 @@ let persons = [
         "id": 4,
         "name": "Mary Poppendieck",
         "number": "39-23-6423122"
+    },
+    {
+        "id": 5,
+        "name": "Bassel Itani",
+        "number": "09060672336"
     }
 ]
 
 app.get('/', (request, response) => {
+    console.log('hello')
     response.send('Hello')
 })
 
