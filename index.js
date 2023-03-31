@@ -1,21 +1,17 @@
+require('dotenv').config()
 const express = require('express')
 //var morgan = require('morgan')
 const app = express()
 const cors = require('cors')
-
+const Person = require('./models/person')
 
 app.use(express.json())
-// morgan.token('asd', req => {
-//     return JSON.stringify(req.body)
-// })
-// app.use(morgan(':method :url :status :res[content-length] - :response-time ms'))
 
-// app.use(morgan(':method :url :body'))
+
 app.use(cors())
 app.use(express.static('build'))
 
 
-//app.use(requestLogger)
 let persons = [
     {
         "id": 1,
@@ -50,13 +46,19 @@ app.get('/', (request, response) => {
 })
 
 app.get('/api/persons', (request, response) => {
-    console.log('Getting all persons')
-    response.json(persons)
-    response.status(204)
+    Person.find({}).then(rs => {
+        response.json(rs)
+    })
 })
 
-app.post('/api/persons', (request, response) => {
-    const newPerson = request.body
+app.post('/api/persons', (request, response,next) => {
+    const body = request.body
+    const newPerson = new Person({
+        name: body.name,
+        number: body.number
+    })
+
+    //const newPerson = request.body
     if (!request.body) {
         return response.status(400).json({
             error: 'Missing data'
@@ -82,36 +84,36 @@ app.post('/api/persons', (request, response) => {
             error: 'Same name already found'
         })
     }
-    const newID = Math.max(...persons.map(c => c.id)) + 1
-    newPerson.id = newID
-    persons = persons.concat(newPerson)
-
-    response.json(newPerson)
-})
-
-app.get('/api/persons/:id', (request, response) => {
-
-    const id = Number(request.params.id)
-    if (persons.filter(p => p.id === id).length === 0) {
-        response.status(404).end()
-    } else {
-        const person = persons.find(p => p.id === id)
-        response.json(person)
-    }
+    newPerson.save().then(rs => {
+        response.json(rs)
+    }).catch(ex=>next(ex))
 
 })
 
-app.delete('/api/persons/:id', (request, response) => {
+app.put('/api/persons/:id',(request,response,next)=>{
+    const body = request.body
+    const  newPerson = {
+        name:body.name,
+        number:body.number
+    } 
+    Person.findByIdAndUpdate(request.params.id,newPerson,{runValidators: true}).
+    then(rs=>{response.json(rs)})
+    .catch(ex=>next(ex))
+})
 
-    const id = Number(request.params.id)
-    console.log(id)
-    if (persons.filter(p => p.id === id).length === 0) {
-        response.status(404).end()
-    } else {
-        persons = persons.filter(p => p.id !== id)
-        console.log(persons)
+app.get('/api/persons/:id', (request, response, next) => {
+
+    Person.findById(request.params.id).then(rs =>
+        response.json(rs)).catch(ex => next(ex))
+
+
+})
+
+app.delete('/api/persons/:id', (request, response, next) => {
+    Person.findByIdAndDelete(request.params.id).then(rs => {
         response.status(204).end()
-    }
+    }).catch(ex => next(ex))
+
 
 })
 
@@ -131,6 +133,20 @@ const unknownEndpoint = (request, response) => {
 }
 
 app.use(unknownEndpoint)
+
+
+const errorHandler = (error, request, response, next) => {
+    console.log(error.name)
+    if (error.name === 'CastError') {
+        return response.status(400).send({
+            error: `ID is in wrong format`
+        })
+    }else if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message })
+    }
+    next(error)
+}
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
